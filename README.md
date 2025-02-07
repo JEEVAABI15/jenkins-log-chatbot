@@ -2,7 +2,7 @@
 ![image](https://github.com/user-attachments/assets/0062bcdd-8067-46a2-96c6-9cc678d041ab)
 
 ### Sample Stored Data
-```json
+```
 {
   "1dbf59287172": {
     "job_name": "Job 1",
