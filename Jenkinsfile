@@ -106,13 +106,18 @@ pipeline {
                                         result = "Error executing API summarization."
                                     }
 
-                                    def response = sh(script: """
-                                        curl -X 'POST' \
-                                        '${BASE_URL}:8000/chatbot/load' -H 'accept: application/json' -H 'Content-Type: application/json' -d '{
+                                    def apiPayload = """{
                                         "job_name": "${jobName}",
                                         "build_number": "${failID}",
-                                        "log": "${escapedConsoleLog}"
-                                    }'""", returnStdout: true).trim()
+                                        "log": "${consoleLog.replace('"', '\\"')}"
+                                    }"""
+
+                                    def response = sh(script: """
+                                        curl -X POST "${BASE_URL}:8000/chatbot/load" \
+                                        -H "accept: application/json" \
+                                        -H "Content-Type: application/json" \
+                                        -d '${apiPayload}'
+                                    """, returnStdout: true).trim()
                 
                                     // Extract unique_key from the JSON response
                                     def uniqueKey = sh(script: "echo '${response}' | jq -r '.unique_key'", returnStdout: true).trim()
