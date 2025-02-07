@@ -6,7 +6,7 @@ pipeline {
         PYTHON_SCRIPT_PATH = "main.py"
         GEMINI_API_KEY = credentials('GEMINI_API_KEY')
         GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
-        BASE_URL = "http://3.14.245.49"
+        BASE_URL = "http://107.20.15.118"
     }
     stages {
         stage('Detect Newly Failed Build') {
@@ -28,6 +28,10 @@ pipeline {
                             if (jobName != env.JOB_NAME) {
                                 // Get the job object
                                 def job = Jenkins.instance.getItem(jobName)
+                                def definition = job.getDefinition()
+                                def script = definition.getScript()
+
+                                echo "Processing job for script: ${script}"
                                 // Get all failed builds for the job
                                 def failedBuilds = job.getBuilds().findAll { it.result == hudson.model.Result.FAILURE }
                                 echo "Failed builds for job ${jobName}: ${failedBuilds}"
@@ -40,8 +44,9 @@ pipeline {
                                         // Get the console output of the failed build
                                         def consoleOutput = failedBuild.getLog(Integer.MAX_VALUE).join('\n')
                                         consoleOutput = consoleOutput.replace('\n', '\\n')
+                                        script = script.replace('\n', '\\n')
                                         // Add the new failed build to the list
-                                        newFailedBuilds << "${jobName}:${failedBuild.getNumber()}:${consoleOutput}"
+                                        newFailedBuilds << "${jobName}:${failedBuild.getNumber()}:${consoleOutput}:${script}"
                                     }
                                 }
                             }
@@ -70,10 +75,11 @@ pipeline {
                         } else {
                             // Iterate over each new failed build
                             newFailedBuilds.each { failure ->
-                                def details = failure.split(":",3)
+                                def details = failure.split(":",4)
                                 def jobName = details[0]
                                 def failID = details[1]
                                 def consoleLog = details[2]
+                                def script = details[3]
                                 echo "Processing new failed builds - Job Name: ${jobName}, Build ID: ${failID}"
 
                                 if (consoleLog?.trim()) {
@@ -82,6 +88,9 @@ pipeline {
                                     
                                     // Properly escape the console log to handle special characters
                                     def escapedConsoleLog = consoleLog.replace("\n", "\\n").replace("\"", "\\\"")
+                                    def escapedScript = script.replace("\n", "\\n").replace("\"", "\\\"")
+
+                                    escapedConsoleLog = escapedConsoleLog + "\\n" + escapedScript
 
                                     // Read the Python script from main.py
                                     def pythonScript = readFile(env.PYTHON_SCRIPT_PATH)
