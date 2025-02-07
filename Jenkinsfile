@@ -88,7 +88,13 @@ pipeline {
                                     
                                     // Properly escape the console log to handle special characters
                                     def escapedConsoleLog = consoleLog.replace("\n", "\\n").replace("\"", "\\\"")
-                                    def escapedScript = script.replace("\n", "\\n").replace("\"", "\\\"")
+                                    // def escapedScript = script.replace("\n", "\\n").replace("\"", "\\\"")
+                                    def escapedScript = """
+                                        ${script}
+                                    """
+
+                                    echo "Escaped Console Log: ${escapedConsoleLog}"
+                                    echo "Escaped Script: ${escapedScript}"
 
                                     escapedConsoleLog = escapedConsoleLog + "\\n" + escapedScript
 
