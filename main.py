@@ -11,6 +11,7 @@ def summarize_console_output(console_output, api_key, api_url):
     # Construct the prompt content
     prompt_content = (
         f"Analyze the following console output, identify the error type, and summarize it in the following format: "
+        f"Also please ignore the failure stage if it conatins calling `report-failure`on failure. Do not talk about this stage."
         f"Error type: [error type - The major error only] Summary: [summary of the error]. \\n{console_output}"
     )
 

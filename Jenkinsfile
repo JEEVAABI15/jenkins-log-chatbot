@@ -109,7 +109,7 @@ pipeline {
                                     def apiPayload = """{
                                         "job_name": "${jobName}",
                                         "build_number": "${failID}",
-                                        "log": "${consoleLog.replace('"', '\\"')}"
+                                        "log": "${escapedConsoleLog.replace('"', '\\"')}"
                                     }"""
 
                                     def response = sh(script: """

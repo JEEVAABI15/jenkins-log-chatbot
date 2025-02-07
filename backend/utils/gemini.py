@@ -34,6 +34,8 @@ def send_to_gemini_api(log_text: str) -> Dict[str, Any]:
     If logs are provided, only analyze those logs and offer solutions or insights.
     If logs are not provided, answer any Jenkins-related questions directly.
     Keep your responses concise—limit most answers to 50 words. Offer more details only if requested.
+    While analyzing logs, provide a detailed explanation of the issue and a solution.
+    Also please ignore the failure stage if it conatins calling `report-failure`on failure. Do not talk about this stage.
     Memory:
     You will receive memory indicating previous conversations. Use it to provide context, but only respond with relevant information based on the logs or query given based on memory.
     User = {log_text}
