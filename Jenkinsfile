@@ -28,10 +28,6 @@ pipeline {
                             if (jobName != env.JOB_NAME) {
                                 // Get the job object
                                 def job = Jenkins.instance.getItem(jobName)
-                                def definition = job.getDefinition()
-                                def script = definition.getScript()
-
-                                echo "Processing job for script: ${script}"
                                 // Get all failed builds for the job
                                 def failedBuilds = job.getBuilds().findAll { it.result == hudson.model.Result.FAILURE }
                                 echo "Failed builds for job ${jobName}: ${failedBuilds}"
@@ -44,11 +40,6 @@ pipeline {
                                         // Get the console output of the failed build
                                         def consoleOutput = failedBuild.getLog(Integer.MAX_VALUE).join('\n')
                                         consoleOutput = consoleOutput.replace('\n', '\\n')
-                                        script = script.replace('\n', '\\n')
-                                        consoleOutput = consoleOutput + "\\n" + script
-
-                                        echo "Console output for ${jobName}:${failedBuild.getNumber()}: ${consoleOutput}"
-
                                         // Add the new failed build to the list
                                         newFailedBuilds << "${jobName}:${failedBuild.getNumber()}:${consoleOutput}"
                                     }
@@ -111,7 +102,7 @@ pipeline {
                                         '${BASE_URL}:8000/chatbot/load' -H 'accept: application/json' -H 'Content-Type: application/json' -d '{
                                         "job_name": "${jobName}",
                                         "build_number": "${failID}",
-                                        "log": "\"" + ${escapedConsoleLog}.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n") + "\""
+                                        "log": "${escapedConsoleLog}"
                                     }'""", returnStdout: true).trim()
                 
                                     // Extract unique_key from the JSON response
