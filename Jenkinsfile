@@ -111,7 +111,7 @@ pipeline {
                                         '${BASE_URL}:8000/chatbot/load' -H 'accept: application/json' -H 'Content-Type: application/json' -d '{
                                         "job_name": "${jobName}",
                                         "build_number": "${failID}",
-                                        "log": ${groovy.json.StringEscapeUtils.escapeJson(escapedConsoleLog)}
+                                        "log": "\"" + ${escapedConsoleLog}.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n") + "\""
                                     }'""", returnStdout: true).trim()
                 
                                     // Extract unique_key from the JSON response
