@@ -6,7 +6,7 @@ pipeline {
         PYTHON_SCRIPT_PATH = "main.py"
         GEMINI_API_KEY = credentials('GEMINI_API_KEY')
         GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
-        BASE_URL = "http://107.20.15.118"
+        BASE_URL = "http://3.14.245.49"
     }
     stages {
         stage('Detect Newly Failed Build') {
