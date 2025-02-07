@@ -6,7 +6,7 @@ pipeline {
         PYTHON_SCRIPT_PATH = "main.py"
         GEMINI_API_KEY = credentials('GEMINI_API_KEY')
         GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
-        BASE_URL = "http://3.14.245.49"
+        BASE_URL = "http://107.20.15.118"
     }
     stages {
         stage('Detect Newly Failed Build') {
@@ -45,8 +45,9 @@ pipeline {
                                         def consoleOutput = failedBuild.getLog(Integer.MAX_VALUE).join('\n')
                                         consoleOutput = consoleOutput.replace('\n', '\\n')
                                         script = script.replace('\n', '\\n')
+                                        consoleOutput = consoleOutput + "\\n" + script
                                         // Add the new failed build to the list
-                                        newFailedBuilds << "${jobName}:${failedBuild.getNumber()}:${consoleOutput}:${script}"
+                                        newFailedBuilds << "${jobName}:${failedBuild.getNumber()}:${consoleOutput}"
                                     }
                                 }
                             }
@@ -75,11 +76,10 @@ pipeline {
                         } else {
                             // Iterate over each new failed build
                             newFailedBuilds.each { failure ->
-                                def details = failure.split(":",4)
+                                def details = failure.split(":",3)
                                 def jobName = details[0]
                                 def failID = details[1]
                                 def consoleLog = details[2]
-                                def script = details[3]
                                 echo "Processing new failed builds - Job Name: ${jobName}, Build ID: ${failID}"
 
                                 if (consoleLog?.trim()) {
@@ -88,15 +88,6 @@ pipeline {
                                     
                                     // Properly escape the console log to handle special characters
                                     def escapedConsoleLog = consoleLog.replace("\n", "\\n").replace("\"", "\\\"")
-                                    // def escapedScript = script.replace("\n", "\\n").replace("\"", "\\\"")
-                                    def escapedScript = """
-                                        ${script}
-                                    """
-
-                                    echo "Escaped Console Log: ${escapedConsoleLog}"
-                                    echo "Escaped Script: ${escapedScript}"
-
-                                    escapedConsoleLog = escapedConsoleLog + "\\n" + escapedScript
 
                                     // Read the Python script from main.py
                                     def pythonScript = readFile(env.PYTHON_SCRIPT_PATH)
@@ -112,18 +103,13 @@ pipeline {
                                         result = "Error executing API summarization."
                                     }
 
-                                    def apiPayload = """{
+                                    def response = sh(script: """
+                                        curl -X 'POST' \
+                                        '${BASE_URL}:8000/chatbot/load' -H 'accept: application/json' -H 'Content-Type: application/json' -d '{
                                         "job_name": "${jobName}",
                                         "build_number": "${failID}",
-                                        "log": "${escapedConsoleLog.replace('"', '\\"')}"
-                                    }"""
-
-                                    def response = sh(script: """
-                                        curl -X POST "${BASE_URL}:8000/chatbot/load" \
-                                        -H "accept: application/json" \
-                                        -H "Content-Type: application/json" \
-                                        -d '${apiPayload}'
-                                    """, returnStdout: true).trim()
+                                        "log": "${escapedConsoleLog}"
+                                    }'""", returnStdout: true).trim()
                 
                                     // Extract unique_key from the JSON response
                                     def uniqueKey = sh(script: "echo '${response}' | jq -r '.unique_key'", returnStdout: true).trim()
