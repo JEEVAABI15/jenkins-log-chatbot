@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE_URL = "http://3.14.245.49:8000"
+const BASE_URL = "http://172.208.50.231:8000"
 
 export const getChats = async () => {
     try {
