@@ -2,11 +2,11 @@ pipeline {
     agent any
     environment {
         FILE_PATH = "/var/lib/jenkins/jobs/previous_failed_builds.txt"
-        EMAIL_RECIPIENTS = "shafeeqahamed1512@gmail.com, rithigasri383@gmail.com, jeevaabishake@gmail.com, yugannkt@gmail.com"
+        EMAIL_RECIPIENTS = "shafeeqahamed1512@gmail.com, jeevaabishake@gmail.com"
         PYTHON_SCRIPT_PATH = "main.py"
         GEMINI_API_KEY = credentials('GEMINI_API_KEY')
-        GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
-        BASE_URL = "http://3.14.245.49"
+        GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+        BASE_URL = "http://172.208.50.231"
     }
     stages {
         stage('Detect Newly Failed Build') {
