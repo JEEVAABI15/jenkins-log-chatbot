@@ -110,9 +110,13 @@ pipeline {
                                         -H 'Content-Type: application/json' \\
                                         -d @payload.json
                                     """, returnStdout: true).trim()
+                                    
+                                    // Write response to a file for safe parsing
+                                    writeFile file: 'response.json', text: response
                 
-                                    // Extract unique_key from the JSON response
-                                    def uniqueKey = sh(script: "echo '${response}' | jq -r '.unique_key'", returnStdout: true).trim()
+                                    // Extract unique_key from the JSON response using readJSON
+                                    def responseJson = readJSON file: 'response.json'
+                                    def uniqueKey = responseJson.unique_key
 
                                     def parsedResult = [:]
                                     try {
