@@ -100,15 +100,15 @@ pipeline {
                                     def jsonPayload = groovy.json.JsonOutput.toJson([
                                         job_name: jobName,
                                         build_number: failID,
-                                        log: escapedConsoleLog
+                                        log: consoleLog
                                     ])
+                                    writeFile file: 'payload.json', text: jsonPayload
                                     
                                     def response = sh(script: """
-                                        curl -X 'POST' \\
-                                        '${BASE_URL}:8000/chatbot/load' \\
+                                        curl -X POST '${BASE_URL}:8000/chatbot/load' \\
                                         -H 'accept: application/json' \\
                                         -H 'Content-Type: application/json' \\
-                                        --data-raw '${jsonPayload}'
+                                        -d @payload.json
                                     """, returnStdout: true).trim()
                 
                                     // Extract unique_key from the JSON response
