@@ -77,21 +77,27 @@ pipeline {
                                 echo "Processing new failed builds - Job Name: ${jobName}, Build ID: ${failID}"
 
                                 if (consoleLog?.trim()) {
-                                    echo "Failed build Logs: ${consoleLog}"
                                     echo "Sending log to Gemini API for summarization..."
                                     
                                     // Properly escape the console log to handle special characters
                                     def escapedConsoleLog = consoleLog.replace("\n", "\\n").replace("\"", "\\\"")
+
+                                    // Initialize variables
+                                    def errorType = "Unknown Error"
+                                    def summary = "Failed to retrieve summary."
+                                    // uniqueKey already declared above
 
                                     // Read the Python script from main.py
                                     def pythonScript = readFile(env.PYTHON_SCRIPT_PATH)
 
                                     def result = ""
                                     try {
+                                        echo "Running Python script to summarize the log..."
                                         result = sh(
                                             script: """python3 "${env.PYTHON_SCRIPT_PATH}" --value "${escapedConsoleLog}" --api_key "${env.GEMINI_API_KEY}" --api_url "${env.GEMINI_API_URL}" """,
                                             returnStdout: true
                                         ).trim()
+                                        echo "Python script execution complete. Result length: ${result.length()}"
                                     } catch (Exception e) {
                                         echo "Error executing Python script: ${e.message}"
                                         result = "Error executing API summarization."
@@ -104,6 +110,9 @@ pipeline {
                                     ])
                                     writeFile file: 'payload.json', text: jsonPayload
                                     
+                                    // Declare uniqueKey variable at higher scope to avoid redeclaration
+                                    def uniqueKey = "unknown"
+                                    
                                     def response = sh(script: """
                                         curl -X POST '${BASE_URL}:8000/chatbot/load' \\
                                         -H 'accept: application/json' \\
@@ -113,17 +122,52 @@ pipeline {
                                     
                                     // Write response to a file for safe parsing
                                     writeFile file: 'response.json', text: response
+                                    echo "API Response: ${response}"
                 
-                                    // Extract unique_key from the JSON response using readJSON
-                                    def responseJson = readJSON file: 'response.json'
-                                    def uniqueKey = responseJson.unique_key
+
+                                    try {
+                                        // Parse the response as JSON properly
+                                        def responseJson = readJSON text: response
+                                        echo "Successfully parsed API response JSON: ${response}"
+                                        
+                                        // Extract unique_key from the response
+                                        if (responseJson.containsKey('unique_key')) {
+                                            uniqueKey = responseJson.unique_key
+                                            echo "Found field with name 'unique_key'"
+                                        } else {
+                                            // Handle the case where the field might have a different name
+                                            echo "Field 'unique_key' not found in response"
+                                            
+                                            // Extract from URL in the response message if available
+                                            def responseMessage = responseJson.response ?: ""
+                                            def urlMatcher = responseMessage =~ /\/chatbot\/([a-zA-Z0-9]+)/
+                                            
+                                            if (urlMatcher.find()) {
+                                                uniqueKey = urlMatcher[0][1]
+                                                echo "Extracted unique_key from URL: ${uniqueKey}"
+                                            } else {
+                                                uniqueKey = "unknown"
+                                                echo "Could not extract unique_key from response"
+                                            }
+                                        }
+                                        
+                                        echo "Final unique_key: ${uniqueKey}"
+                                    } catch (Exception e) {
+                                        echo "Error parsing API response JSON: ${e.message}"
+                                        echo "Raw response content: ${response}"
+                                        uniqueKey = "unknown"
+                                    }
 
                                     def parsedResult = [:]
                                     try {
+                                        echo "Attempting to parse result: ${result}"
                                         parsedResult = readJSON text: result
+                                        echo "Successfully parsed Gemini API result: ${parsedResult}"
                                     } catch (Exception e) {
-                                        echo "Error parsing API result: ${e.message}"
+                                        echo "Error parsing Gemini API result: ${e.message}"
+                                        echo "Raw result content: ${result}"
                                     }
+                                    
                                     if (parsedResult?.errorType && parsedResult?.summary) {
                                         errorType = parsedResult.errorType
                                         summary = parsedResult.summary
@@ -137,13 +181,29 @@ pipeline {
                                     echo "Error Type: ${errorType}"
                                     echo "Summary: ${summary}"
                                     echo "Unique Key: ${uniqueKey}"
-                                    echo "Chat URL: ${BASE_URL}?chat=${uniqueKey}"
-
+                                    
+                                    // Safe chat URL construction
+                                    def chatURL = "${BASE_URL}"
+                                    if (uniqueKey && uniqueKey != "unknown") {
+                                        chatURL = "${BASE_URL}?chat=${uniqueKey}"
+                                        echo "Chat URL: ${chatURL}"
+                                    } else {
+                                        echo "WARNING: Unable to construct chat URL due to missing uniqueKey"
+                                    }
 
                                     // Construct URLs for the job and console
                                     def jobURL = "${Jenkins.instance.getRootUrl()}job/${jobName}/${failID}"
                                     def consoleURL = "${Jenkins.instance.getRootUrl()}job/${jobName}/${failID}/console"
+                                    
                                     // Construct the email body
+                                    def chatSection = ""
+                                    if (uniqueKey && uniqueKey != "unknown") {
+                                        chatSection = "<p><b>Continue chat:</b> <a href=\"${chatURL}\">${chatURL}</a></p>"
+                                        echo "Added chat section with URL: ${chatURL}"
+                                    } else {
+                                        echo "Skipped adding chat section due to missing uniqueKey"
+                                    }
+                                    
                                     def emailBody = """
                                         <p>Dear All,</p>
                                         <p>A new failed build has been detected:</p>
@@ -153,7 +213,7 @@ pipeline {
                                         <p><b>Console URL:</b> <a href="${consoleURL}">${consoleURL}</a></p>
                                         <p><b>Error Type:</b> ${errorType}</p>
                                         <p><b>Summary: </b> ${summary}</p>
-                                        <p><b>Continue chat:</b>${BASE_URL}?chat=${uniqueKey}</p>
+                                        ${chatSection}
                                         <p>Regards,</p>
                                         <p>Jenkins Admin</p>
                                     """
